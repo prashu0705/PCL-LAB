@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCL-LAB Traffic Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e27;
+            color: #e0e7ff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.1) 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(99,102,241,0.2);
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .mode-card {
+            background: linear-gradient(135deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.8) 100%);
+            border: 2px solid rgba(148,163,184,0.2);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+
+        .mode-card.active {
+            border-color: currentColor;
+            box-shadow: 0 12px 48px currentColor;
+            background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.15) 100%);
+        }
+
+        .mode-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .viz-card {
+            background: linear-gradient(135deg, rgba(30,41,59,0.6) 0%, rgba(15,23,42,0.8) 100%);
+            border-radius: 20px;
+            padding: 28px;
+            border: 1px solid rgba(148,163,184,0.2);
+        }
+
+        .viz-card h2 {
+            margin-bottom: 24px;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .canvas-container {
+            background: #050814;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(99,102,241,0.2);
+        }
+
+        #canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(99,102,241,0.5);
+        }
+
+        .btn.playing {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+        }
+
+        .timeline {
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .timeline-value {
+            font-size: 1.6em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .metric-box {
+            background: rgba(0,0,0,0.4);
+            padding: 20px;
+            border-radius: 14px;
+            border-left: 4px solid;
+        }
+
+        .metric-label {
+            font-size: 0.8em;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #e0e7ff;
+        }
+
+        .metric-subtext {
+            font-size: 0.85em;
+            margin-top: 8px;
+            color: #64748b;
+        }
+
+        .process-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .process-box {
+            background: rgba(0,0,0,0.4);
+            padding: 18px;
+            border-radius: 12px;
+            border: 2px solid rgba(148,163,184,0.15);
+            transition: all 0.4s;
+        }
+
+        .process-box.active {
+            border-color: #10b981;
+            background: rgba(16,185,129,0.1);
+            box-shadow: 0 0 32px rgba(16,185,129,0.2);
+        }
+
+        .process-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .process-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .process-badge.active {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .process-badge.idle {
+            background: rgba(148,163,184,0.2);
+            color: #64748b;
+        }
+
+        .thread-bars {
+            display: flex;
+            gap: 4px;
+            margin-top: 14px;
+            height: 6px;
+        }
+
+        .thread-bar {
+            flex: 1;
+            background: rgba(148,163,184,0.2);
+            border-radius: 3px;
+            transition: all 0.4s;
+        }
+
+        .thread-bar.active {
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            box-shadow: 0 0 12px rgba(99,102,241,0.6);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+            margin-top: 16px;
+        }
+
+        .legend {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+            padding: 16px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+        }
+
+        .legend-color {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 PCL-LAB Traffic Simulation</h1>
+            <p style="font-size: 1.15em; color: #94a3b8;">Hybrid MPI + OpenMP Parallel Computing</p>
+        </header>
+
+        <div class="mode-selector">
+            <div class="mode-card active" data-mode="serial" style="color: #6366f1;">
+                <h3>Serial</h3>
+                <p style="color: #94a3b8; margin: 10px 0;">1 Process × 1 Thread</p>
+            </div>
+            <div class="mode-card" data-mode="mpi" style="color: #ec4899;">
+                <h3>MPI Only</h3>
+                <p style="color: #94a3b8; margin: 10px 0;">4 Processes × 1 Thread</p>
+            </div>
+            <div class="mode-card" data-mode="openmp" style="color: #10b981;">
+                <h3>OpenMP</h3>
+                <p style="color: #94a3b8; margin: 10px 0;">1 Process × 4 Threads</p>
+            </div>
+            <div class="mode-card" data-mode="hybrid" style="color: #f59e0b;">
+                <h3>Hybrid</h3>
+                <p style="color: #94a3b8; margin: 10px 0;">4 Processes × 2 Threads</p>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="viz-card">
+                <h2>🗺️ City Grid (10×10)</h2>
+                <div class="canvas-container">
+                    <canvas id="canvas" width="800" height="800"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn" id="playBtn">▶ Play</button>
+                    <button class="btn secondary" id="pauseBtn">⏸ Pause</button>
+                    <button class="btn secondary" id="resetBtn">↻ Reset</button>
+                    <button class="btn secondary" id="stepBtn">⏭ Step</button>
+                </div>
+
+                <div class="timeline">
+                    <div class="timeline-value">
+                        Timestep <span id="timestepDisplay">0</span> / 50
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, #10b981, #fbbf24, #ef4444);"></div>
+                        <span>Road Congestion</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fff; width: 12px; height: 12px; border-radius: 50%;"></div>
+                        <span>Vehicle</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="viz-card">
+                    <h2>📊 Metrics</h2>
+                    <div class="metrics-grid">
+                        <div class="metric-box" style="border-left-color: #6366f1;">
+                            <div class="metric-label">Configuration</div>
+                            <div class="metric-value" style="font-size: 1.4em;" id="configValue">Serial 1×1</div>
+                        </div>
+                        <div class="metric-box" style="border-left-color: #ef4444;">
+                            <div class="metric-label">Congestion</div>
+                            <div class="metric-value" id="congestionValue">0.000</div>
+                        </div>
+                        <div class="metric-box" style="border-left-color: #06b6d4;">
+                            <div class="metric-label">Active Cars</div>
+                            <div class="metric-value" id="carsValue">100</div>
+                        </div>
+                        <div class="metric-box" style="border-left-color: #f59e0b;">
+                            <div class="metric-label">MPI Messages</div>
+                            <div class="metric-value" id="mpiValue">0</div>
+                        </div>
+                    </div>
+
+                    <h2 style="margin-top: 28px; font-size: 1.3em;">⚙️ Processes</h2>
+                    <div class="process-grid" id="processGrid"></div>
+                </div>
+
+                <div class="viz-card" style="margin-top: 25px;">
+                    <h2>⚡ Performance</h2>
+                    <div class="chart-container">
+                        <canvas id="perfChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="viz-card">
+            <h2>📈 Speedup Analysis</h2>
+            <div class="chart-container" style="height: 350px;">
+                <canvas id="speedupChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation classes
+        class Road {
+            constructor(from, to, length, speedLimit, capacity) {
+                this.from_node = from;
+                this.to_node = to;
+                this.length = length;
+                this.speed_limit = speedLimit;
+                this.max_capacity = capacity;
+                this.current_cars = 0;
+            }
+            getCongestion() {
+                return Math.min(1, this.current_cars / this.max_capacity);
+            }
+            getTravelTime() {
+                return (this.length / this.speed_limit) * (1.0 + 2.0 * this.getCongestion());
+            }
+        }
+
+        class Car {
+            constructor(id, current, dest, route) {
+                this.id = id;
+                this.current_node = current;
+                this.destination_node = dest;
+                this.route = route;
+                this.route_index = 0;
+                this.position_on_road = 0.0;
+                this.completed = false;
+                this.process = 0;
+            }
+        }
+
+        class CityGraph {
+            constructor(width, height, seed = 42) {
+                this.width = width;
+                this.height = height;
+                this.adjacencyList = new Map();
+                this.seed = seed;
+                this.buildGrid();
+            }
+            
+            random() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+
+            getNodeId(x, y) {
+                return y * this.width + x;
+            }
+
+            buildGrid() {
+                for (let y = 0; y < this.height; y++) {
+                    for (let x = 0; x < this.width; x++) {
+                        const node = this.getNodeId(x, y);
+                        if (!this.adjacencyList.has(node)) {
+                            this.adjacencyList.set(node, []);
+                        }
+
+                        const dirs = [{dx:1,dy:0}, {dx:0,dy:1}, {dx:-1,dy:0}, {dx:0,dy:-1}];
+                        for (const {dx, dy} of dirs) {
+                            const nx = x + dx, ny = y + dy;
+                            if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
+                                const neighbor = this.getNodeId(nx, ny);
+                                const road = new Road(
+                                    node, neighbor,
+                                    0.5 + this.random() * 1.5,
+                                    40 + this.random() * 40,
+                                    Math.floor(8 + this.random() * 7)
+                                );
+                                this.adjacencyList.get(node).push({neighbor, road});
+                            }
+                        }
+                    }
+                }
+            }
+
+            findShortestPath(start, goal) {
+                const distance = new Map();
+                const previous = new Map();
+                const pq = [];
+
+                distance.set(start, 0);
+                pq.push({node: start, dist: 0});
+
+                while (pq.length > 0) {
+                    pq.sort((a, b) => a.dist - b.dist);
+                    const {node: current} = pq.shift();
+                    if (current === goal) break;
+
+                    const neighbors = this.adjacencyList.get(current) || [];
+                    for (const {neighbor, road} of neighbors) {
+                        const newDist = distance.get(current) + road.getTravelTime();
+                        if (!distance.has(neighbor) || newDist < distance.get(neighbor)) {
+                            distance.set(neighbor, newDist);
+                            previous.set(neighbor, current);
+                            pq.push({node: neighbor, dist: newDist});
+                        }
+                    }
+                }
+
+                const path = [];
+                let current = goal;
+                while (current !== start && previous.has(current)) {
+                    path.push(current);
+                    current = previous.get(current);
+                }
+                path.push(start);
+                return path.reverse();
+            }
+
+            getRoad(from, to) {
+                const neighbors = this.adjacencyList.get(from);
+                if (!neighbors) return null;
+                const edge = neighbors.find(n => n.neighbor === to);
+                return edge ? edge.road : null;
+            }
+
+            getNodePosition(node) {
+                return {x: node % this.width, y: Math.floor(node / this.width)};
+            }
+        }
+
+        // Global state
+        const GRID_SIZE = 10;
+        const NUM_CARS = 100;
+        const DT = 0.1;
+        let timestep = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let currentMode = 'serial';
+        let graph = new CityGraph(GRID_SIZE, GRID_SIZE);
+        let cars = [];
+        let mpiCommunications = 0;
+
+        const modeConfigs = {
+            serial: {processes: 1, threads: 1, color: '#6366f1', name: 'Serial (1×1)'},
+            mpi: {processes: 4, threads: 1, color: '#ec4899', name: 'MPI (4×1)'},
+            openmp: {processes: 1, threads: 4, color: '#10b981', name: 'OpenMP (1×4)'},
+            hybrid: {processes: 4, threads: 2, color: '#f59e0b', name: 'Hybrid (4×2)'}
+        };
+
+        // Initialize
+        function initializeCars() {
+            cars = [];
+            for (let i = 0; i < NUM_CARS; i++) {
+                const start = Math.floor(Math.random() * GRID_SIZE * GRID_SIZE);
+                let dest = Math.floor(Math.random() * GRID_SIZE * GRID_SIZE);
+                while (dest === start) dest = Math.floor(Math.random() * GRID_SIZE * GRID_SIZE);
+                const route = graph.findShortestPath(start, dest);
+                const car = new Car(i, start, dest, route);
+                
+                const config = modeConfigs[currentMode];
+                if (config.processes > 1) {
+                    const nodesPerProcess = (GRID_SIZE * GRID_SIZE) / config.processes;
+                    car.process = Math.floor(car.current_node / nodesPerProcess);
+                }
+                cars.push(car);
+            }
+        }
+
+        // Update simulation
+        function updateSimulation() {
+            const config = modeConfigs[currentMode];
+            
+            for (const [node, neighbors] of graph.adjacencyList) {
+                for (const {road} of neighbors) road.current_cars = 0;
+            }
+
+            for (const car of cars) {
+                if (car.completed || car.route_index >= car.route.length - 1) {
+                    car.completed = true;
+                    continue;
+                }
+
+                const current = car.route[car.route_index];
+                const next = car.route[car.route_index + 1];
+                const road = graph.getRoad(current, next);
+                
+                if (!road) {
+                    car.completed = true;
+                    continue;
+                }
+
+                if (config.processes > 1) {
+                    const nodesPerProcess = (GRID_SIZE * GRID_SIZE) / config.processes;
+                    const oldProcess = Math.floor(current / nodesPerProcess);
+                    const newProcess = Math.floor(next / nodesPerProcess);
+                    if (oldProcess !== newProcess) {
+                        mpiCommunications++;
+                        car.process = newProcess;
+                    }
+                }
+
+                const effectiveSpeed = road.speed_limit * (1.0 - 0.5 * road.getCongestion());
+                car.position_on_road += (effectiveSpeed * DT) / road.length;
+
+                if (car.position_on_road >= 1.0) {
+                    car.position_on_road = 0.0;
+                    car.route_index++;
+                    car.current_node = next;
+                    if (car.route_index >= car.route.length - 1) car.completed = true;
+                }
+
+                road.current_cars++;
+            }
+        }
+
+        // Draw
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const cellSize = canvas.width / GRID_SIZE;
+
+        function draw() {
+            const config = modeConfigs[currentMode];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // MPI boundaries
+            if (config.processes > 1) {
+                const nodesPerProcess = (GRID_SIZE * GRID_SIZE) / config.processes;
+                ctx.setLineDash([12, 6]);
+                ctx.lineWidth = 3;
+                for (let p = 0; p < config.processes; p++) {
+                    const startRow = Math.floor((p * nodesPerProcess) / GRID_SIZE);
+                    const endRow = Math.floor(((p + 1) * nodesPerProcess) / GRID_SIZE);
+                    const hue = (p * 360) / config.processes;
+                    ctx.strokeStyle = `hsla(${hue}, 70%, 60%, 0.4)`;
+                    ctx.strokeRect(2, startRow * cellSize + 2, canvas.width - 4, (endRow - startRow) * cellSize - 4);
+                }
+                ctx.setLineDash([]);
+            }
+
+            // Roads
+            for (const [node, neighbors] of graph.adjacencyList) {
+                const pos1 = graph.getNodePosition(node);
+                const x1 = pos1.x * cellSize + cellSize / 2;
+                const y1 = pos1.y * cellSize + cellSize / 2;
+
+                for (const {neighbor, road} of neighbors) {
+                    const pos2 = graph.getNodePosition(neighbor);
+                    const x2 = pos2.x * cellSize + cellSize / 2;
+                    const y2 = pos2.y * cellSize + cellSize / 2;
+                    const cong = road.getCongestion();
+                    
+                    let color;
+                    if (cong < 0.3) {
+                        color = `rgba(16, 185, 129, ${0.4 + cong})`;
+                    } else if (cong < 0.6) {
+                        color = `rgba(251, 191, 36, ${0.6 + cong * 0.2})`;
+                    } else {
+                        color = `rgba(239, 68, 68, ${0.8 + cong * 0.2})`;
+                    }
+
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 3 + cong * 4;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+            }
+
+            // Nodes
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cx = x * cellSize + cellSize / 2;
+                    const cy = y * cellSize + cellSize / 2;
+                    ctx.fillStyle = '#475569';
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            // Cars
+            for (const car of cars) {
+                if (car.completed || car.route_index >= car.route.length - 1) continue;
+
+                const current = car.route[car.route_index];
+                const next = car.route[car.route_index + 1];
+                const pos1 = graph.getNodePosition(current);
+                const pos2 = graph.getNodePosition(next);
+
+                const x1 = pos1.x * cellSize + cellSize / 2;
+                const y1 = pos1.y * cellSize + cellSize / 2;
+                const x2 = pos2.x * cellSize + cellSize / 2;
+                const y2 = pos2.y * cellSize + cellSize / 2;
+
+                const carX = x1 + (x2 - x1) * car.position_on_road;
+                const carY = y1 + (y2 - y1) * car.position_on_road;
+
+                let carColor = '#ffffff';
+                if (config.processes > 1) {
+                    const hue = (car.process * 360) / config.processes;
+                    carColor = `hsl(${hue}, 85%, 75%)`;
+                }
+
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = carColor;
+                ctx.fillStyle = carColor;
+                ctx.beginPath();
+                ctx.arc(carX, carY, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(carX, carY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.shadowBlur = 0;
+            updateMetrics();
+        }
+
+        function updateMetrics() {
+            const config = modeConfigs[currentMode];
+            let totalCongestion = 0, roadCount = 0;
+            for (const [node, neighbors] of graph.adjacencyList) {
+                for (const {road} of neighbors) {
+                    totalCongestion += road.getCongestion();
+                    roadCount++;
+                }
+            }
+            const avgCongestion = roadCount > 0 ? totalCongestion / roadCount : 0;
+            const activeCars = cars.filter(c => !c.completed).length;
+
+            document.getElementById('timestepDisplay').textContent = timestep;
+            document.getElementById('configValue').textContent = config.name;
+            document.getElementById('congestionValue').textContent = avgCongestion.toFixed(3);
+            document.getElementById('carsValue').textContent = activeCars;
+            document.getElementById('mpiValue').textContent = mpiCommunications;
+
+            updateProcessGrid();
+        }
+
+        function updateProcessGrid() {
+            const config = modeConfigs[currentMode];
+            const grid = document.getElementById('processGrid');
+            grid.innerHTML = '';
+
+            for (let p = 0; p < config.processes; p++) {
+                const nodesPerProcess = (GRID_SIZE * GRID_SIZE) / config.processes;
+                const startNode = p * nodesPerProcess;
+                const endNode = (p + 1) * nodesPerProcess;
+                const carsInProcess = cars.filter(car => 
+                    !car.completed && car.current_node >= startNode && car.current_node < endNode
+                ).length;
+                const isActive = carsInProcess > 0;
+
+                const box = document.createElement('div');
+                box.className = `process-box ${isActive ? 'active' : ''}`;
+                box.innerHTML = `
+                    <div class="process-header">
+                        <strong>Process ${p}</strong>
+                        <span class="process-badge ${isActive ? 'active' : 'idle'}">
+                            ${isActive ? 'Active' : 'Idle'}
+                        </span>
+                    </div>
+                    <div style="font-size: 0.85em; color: #94a3b8;">
+                        ${carsInProcess} cars
+                    </div>
+                    <div class="thread-bars">
+                        ${Array.from({length: config.threads}, (_, i) => 
+                            `<div class="thread-bar ${isActive && Math.random() > 0.4 ? 'active' : ''}"></div>`
+                        ).join('')}
+                    </div>
+                `;
+                grid.appendChild(box);
+            }
+        }
+
+        // Controls
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (isPlaying) return;
+            isPlaying = true;
+            document.getElementById('playBtn').classList.add('playing');
+            document.getElementById('playBtn').textContent = '⏸ Playing';
+            
+            playInterval = setInterval(() => {
+                if (timestep < 50) {
+                    timestep++;
+                    updateSimulation();
+                    draw();
+                } else {
+                    stopPlayback();
+                }
+            }, 400);
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', stopPlayback);
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            stopPlayback();
+            timestep = 0;
+            mpiCommunications = 0;
+            graph = new CityGraph(GRID_SIZE, GRID_SIZE);
+            initializeCars();
+            draw();
+        });
+
+        document.getElementById('stepBtn').addEventListener('click', () => {
+            if (timestep < 50) {
+                timestep++;
+                updateSimulation();
+                draw();
+            }
+        });
+
+        function stopPlayback() {
+            isPlaying = false;
+            document.getElementById('playBtn').classList.remove('playing');
+            document.getElementById('playBtn').textContent = '▶ Play';
+            clearInterval(playInterval);
+        }
+
+        // Mode selection
+        document.querySelectorAll('.mode-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                currentMode = card.dataset.mode;
+                
+                stopPlayback();
+                timestep = 0;
+                mpiCommunications = 0;
+                graph = new CityGraph(GRID_SIZE, GRID_SIZE);
+                initializeCars();
+                draw();
+            });
+        });
+
+        // Charts
+        const perfCtx = document.getElementById('perfChart').getContext('2d');
+        new Chart(perfCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Serial', 'MPI', 'OpenMP', 'Hybrid'],
+                datasets: [{
+                    label: 'Time (s)',
+                    data: [100, 28, 30, 22],
+                    backgroundColor: ['rgba(99,102,241,0.8)', 'rgba(236,72,153,0.8)', 'rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)'],
+                    borderColor: ['#6366f1', '#ec4899', '#10b981', '#f59e0b'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Execution Time', color: '#e0e7ff', font: { size: 14, weight: '600' } }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148,163,184,0.1)' },
+                        title: { display: true, text: 'Seconds', color: '#cbd5e1' }
+                    },
+                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                }
+            }
+        });
+
+        const speedupCtx = document.getElementById('speedupChart').getContext('2d');
+        new Chart(speedupCtx, {
+            type: 'line',
+            data: {
+                labels: ['1', '2', '4', '8', '16'],
+                datasets: [
+                    {
+                        label: 'Ideal',
+                        data: [1, 2, 4, 8, 16],
+                        borderColor: '#64748b',
+                        borderWidth: 3,
+                        borderDash: [8, 4],
+                        backgroundColor: 'transparent',
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'MPI',
+                        data: [1, 1.8, 3.57, 6.2, 9.5],
+                        borderColor: '#ec4899',
+                        backgroundColor: 'rgba(236,72,153,0.1)',
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#ec4899',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'OpenMP',
+                        data: [1, 1.9, 3.33, 5.8, 8.2],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.1)',
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Hybrid',
+                        data: [1, 2.1, 4.55, 8.33, 12.8],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245,158,11,0.1)',
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#f59e0b',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        labels: { color: '#cbd5e1', font: { size: 12 }, padding: 15 },
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Strong Scaling Performance',
+                        color: '#e0e7ff',
+                        font: { size: 16, weight: '600' },
+                        padding: 20
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        title: { display: true, text: 'Speedup', color: '#cbd5e1', font: { size: 13 } },
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148,163,184,0.1)' }
+                    },
+                    x: { 
+                        title: { display: true, text: 'Cores', color: '#cbd5e1', font: { size: 13 } },
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148,163,184,0.1)' }
+                    }
+                }
+            }
+        });
+
+        // Initialize everything
+        initializeCars();
+        draw();
+    </script>
+</body>
+</html>
